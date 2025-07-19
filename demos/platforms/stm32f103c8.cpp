@@ -23,7 +23,7 @@ hal::cortex_m::dwt_counter* counter;
 void initialize_platform()
 {
   using namespace hal::literals;
-  hal::stm32f1::maximum_speed_using_internal_oscillator();
+  // hal::stm32f1::maximum_speed_using_internal_oscillator();
 
   static hal::cortex_m::dwt_counter dwt_steady_clock(
     hal::stm32f1::frequency(hal::stm32f1::peripheral::cpu));

@@ -1,0 +1,101 @@
+name: 👨🏻‍💻 QEMU
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        type: string
+        default: ${{ github.repository }}
+      version:
+        type: string
+        default: ""
+      conan_version:
+        type: string
+        default: ""
+      compiler_profile_url:
+        type: string
+        required: true
+      compiler_profile:
+        type: string
+        required: true
+      compiler_profile_branch:
+        type: string
+        default: "main"
+      platform_profile_url:
+        type: string
+        required: true
+      platform_profile:
+        type: string
+        required: true
+      platform_profile_branch:
+        type: string
+        default: "main"
+jobs:
+  build: # STOLEN from libhal/ci
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4.1.1
+        if: ${{ inputs.version != '' }}
+        with:
+          submodules: true
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.version }}
+
+      - uses: actions/checkout@v4.1.1
+        if: ${{ inputs.version == '' }}
+        with:
+          submodules: true
+          repository: ${{ inputs.repo }}
+
+      - name: 📥 Install Conan ${{ inputs.conan_version }}
+        if: ${{ inputs.conan_version != '' }}
+        run: pipx install conan==${{ inputs.conan_version }}
+      
+      - name: 📥 Install Conan Latest
+        if: ${{ inputs.conan_version == '' }}
+        run: pipx install conan
+
+      - name: 📡 Add `libhal` repo to conan remotes
+        run: conan remote add libhal
+          https://libhal.jfrog.io/artifactory/api/conan/trunk-conan
+
+      - name: 📡 Create and setup default profile
+        run: conan profile detect --force
+
+      - name: 👁️‍🗨️ Show conan profile
+        run: conan profile show
+
+      - name: Install libhal settings_user.yml
+        run: conan config install -sf profiles/baremetal/v2 https://github.com/libhal/conan-config.git
+
+      - name: Install compiler profiles
+        run: conan config install -tf profiles -sf conan/profiles --args "-b ${{ inputs.compiler_profile_branch }} --single-branch" ${{ inputs.compiler_profile_url }}
+
+      - name: Install platform profiles
+        run: conan config install -tf profiles -sf conan/profiles --args "-b ${{ inputs.platform_profile_branch }} --single-branch" ${{ inputs.platform_profile_url }}
+
+      - name: 🏗️ Build debug demos for ${{ inputs.platform_profile }}
+        run: conan build demos -pr ${{ inputs.compiler_profile }} -pr ${{ inputs.platform_profile }} -s build_type=Debug
+
+      - name: 🚀 Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-folder
+          path: demos/build/  # Adjust if your build directory is different
+
+  run_single_level:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install qemu-system-arm gdb-multiarch
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-folder
+
+      - name: Run Single Level Demo
+        run: |
+          timeout 5s qemu-system-arm -M olimex-stm32-h405 -kernel build/stm32f103c8/Debug/single_level.elf -nographic -s -S
