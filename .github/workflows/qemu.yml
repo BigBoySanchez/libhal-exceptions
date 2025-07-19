@@ -84,11 +84,12 @@ jobs:
           path: demos/build/  # Adjust if your build directory is different
 
   run_single_level:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build
     steps:
       - name: Install Dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install qemu-system-arm gdb-multiarch
       
       - name: Download Build Artifacts
