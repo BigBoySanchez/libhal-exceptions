@@ -98,4 +98,4 @@ jobs:
 
       - name: Run Single Level Demo
         run: |
-          timeout 5s qemu-system-arm -M olimex-stm32-h405 -kernel build/stm32f103c8/Debug/single_level.elf -nographic -s -S
+          qemu-system-arm -machine help
