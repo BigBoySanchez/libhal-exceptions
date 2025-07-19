@@ -84,7 +84,7 @@ jobs:
           path: demos/build/  # Adjust if your build directory is different
 
   run_single_level:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build
     steps:
       - name: Install Dependencies
@@ -99,4 +99,4 @@ jobs:
 
       - name: Run Single Level Demo
         run: |
-          qemu-system-arm -machine help
+          timeout 5s qemu-system-arm -M olimex-stm32-h405 -kernel ${{ github.workspace }}/stm32f103c8/Debug/single_level.elf -nographic -s -S
