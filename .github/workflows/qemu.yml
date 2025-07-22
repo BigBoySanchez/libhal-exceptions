@@ -31,7 +31,7 @@ on:
         type: string
         default: "main"
 jobs:
-  build: # STOLEN from libhal/ci
+  build_debug: # STOLEN from libhal/ci
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4.1.1
@@ -85,18 +85,39 @@ jobs:
 
   run_single_level:
     runs-on: ubuntu-24.04
-    needs: build
+    needs: build_debug
     steps:
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install qemu-system-arm gdb-multiarch
-      
+
       - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-folder
 
+      - name: Trim profile version
+        id: trim
+        run: |
+          profile="${{ inputs.platform_profile }}"
+          echo "trimmed=${profile##*/}" >> $GITHUB_OUTPUT
+
       - name: Run Single Level Demo
         run: |
-          timeout 5s qemu-system-arm -M olimex-stm32-h405 -kernel ${{ github.workspace }}/stm32f103c8/Debug/single_level.elf -nographic -s -S
+          tree -d ${{ github.workspace }}
+
+          nohup qemu-system-arm                                                                        \
+            -M olimex-stm32-h405                                                                       \
+            -kernel ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf   \
+            -S -s -nographic                                                                           \
+            &
+
+          gdb-multiarch --batch    \
+          -ex "target remote :1234"   \
+          -ex "watch global"          \
+          -ex "continue"              \
+          -ex "monitor quit"          \
+          ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf \
+          | grep 'New value = '
+        
