@@ -31,7 +31,7 @@ on:
         type: string
         default: "main"
 jobs:
-  build: # b/c building the debug does not guarantee that normal build works
+  build_release: # b/c building the debug does not guarantee that normal build works
     uses: libhal/ci/.github/workflows/demo_builder.yml@5.x.y
     with:
       compiler_profile_url: ${{ inputs.compiler_profile_url }}
@@ -182,5 +182,5 @@ jobs:
         run: |
           cat gdb.log
         
-          grep -q "New value = 0x6665" gdb.log
+          grep -q "New value = 0x6666" gdb.log
         
