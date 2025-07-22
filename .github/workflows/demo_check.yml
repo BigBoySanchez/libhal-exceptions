@@ -43,9 +43,6 @@ jobs:
   build_debug: # STOLEN from libhal/ci
     runs-on: ubuntu-22.04
     steps:
-      - name: Add DEBUG to env
-        run: echo "DEBUG=true" >> $GITHUB_ENV
-
       - uses: actions/checkout@v4.1.1
         if: ${{ inputs.version != '' }}
         with:
@@ -89,10 +86,16 @@ jobs:
       - name: 🏗️ Build debug demos for ${{ inputs.platform_profile }}
         run: conan build demos -pr ${{ inputs.compiler_profile }} -pr ${{ inputs.platform_profile }} -s build_type=Debug
 
+      - name: Trim profile version
+        id: trim
+        run: |
+          profile="${{ inputs.platform_profile }}"
+          echo "trimmed=${profile##*/}" >> $GITHUB_OUTPUT
+
       - name: 🚀 Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-folder
+          name: build-${{ steps.trim.outputs.trimmed }}
           path: demos/build/
 
   check_single_level:
@@ -103,36 +106,40 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install qemu-system-arm gdb-multiarch
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-folder
-
+          
       - name: Trim profile version
         id: trim
         run: |
           profile="${{ inputs.platform_profile }}"
           echo "trimmed=${profile##*/}" >> $GITHUB_OUTPUT
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ steps.trim.outputs.trimmed }}
 
       - name: Run Single Level Demo
         run: |
-          tree -d ${{ github.workspace }}
-
-          nohup qemu-system-arm                                                                         \
-            -M olimex-stm32-h405                                                                        \
-            -kernel ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf    \
-            -S -s -nographic                                                                            \
+          nohup qemu-system-arm                                                                               \
+            -M olimex-stm32-h405                                                                              \
+            -kernel ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf          \
+            -S -s -nographic                                                                                  \
             &
 
-          gdb-multiarch --batch                                                                         \
-          -ex "set output-radix 16"                                                                     \
-          -ex "target remote :1234"                                                                     \
-          -ex "watch global"                                                                            \
-          -ex "continue"                                                                                \
-          -ex "monitor quit"                                                                            \
-          ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf              \
-          | grep -q 'New value = 0x5'                                                                   # Only works if 1 var needs to be watched & it changes once
+          gdb-multiarch --batch                                                                               \
+            -ex "set output-radix 16"                                                                         \
+            -ex "target remote :1234"                                                                         \
+            -ex "watch global"                                                                                \
+            -ex "continue"                                                                                    \
+            -ex "monitor quit"                                                                                \
+            ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf                  \
+            > gdb.log
+
+      - name: Check Single Level Result
+        run: |
+          cat gdb.log
+        
+          grep -q "New value = 0x5" gdb.log
 
   check_multiple_inheritance:
     runs-on: ubuntu-24.04
@@ -142,22 +149,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install qemu-system-arm gdb-multiarch
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-folder
-
+          
       - name: Trim profile version
         id: trim
         run: |
           profile="${{ inputs.platform_profile }}"
           echo "trimmed=${profile##*/}" >> $GITHUB_OUTPUT
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ steps.trim.outputs.trimmed }}
 
       - name: Run Multiple Inheritance Demo
         run: |
-          tree -d ${{ github.workspace }}
-
           nohup qemu-system-arm                                                                                 \
             -M olimex-stm32-h405                                                                                \
             -kernel ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/multiple_inheritance.elf    \
@@ -165,11 +170,17 @@ jobs:
             &
 
           gdb-multiarch --batch                                                                                 \
-          -ex "set output-radix 16"                                                                             \
-          -ex "target remote :1234"                                                                             \
-          -ex "watch global"                                                                                    \
-          -ex "continue"                                                                                        \
-          -ex "monitor quit"                                                                                    \
-          ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/multiple_inheritance.elf              \
-          | grep -q 'New value = 0x6666'                                                                        # Only works if 1 var needs to be watched & it changes once
+            -ex "set output-radix 16"                                                                           \
+            -ex "target remote :1234"                                                                           \
+            -ex "watch global"                                                                                  \
+            -ex "continue"                                                                                      \
+            -ex "monitor quit"                                                                                  \
+            ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/multiple_inheritance.elf            \
+            > gdb.log
+
+      - name: Check Multiple Inheritance Result
+        run: |
+          cat gdb.log
+        
+          grep -q "New value = 0x6665" gdb.log
         
