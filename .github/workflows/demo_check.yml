@@ -126,13 +126,23 @@ jobs:
             -S -s -nographic                                                                                  \
             &
 
-          gdb-multiarch --batch                                                                               \
+          timeout 5s gdb-multiarch --batch                                                                    \
             -ex "set output-radix 16"                                                                         \
             -ex "target remote :1234"                                                                         \
             -ex "watch global"                                                                                \
             -ex "continue"                                                                                    \
+            -ex "monitor quit"                                                                                \
             ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf                  \
-            > gdb.log
+            > gdb.log || {
+              # Make timeouts more explicit  
+              code=$?
+              if [ "$code" -eq 124 ]; then
+                echo "❌ GDB timeout after 5 seconds" >&2
+              else
+                echo "❌ GDB failed with code $code" >&2
+              fi
+              exit $code
+            }
 
       - name: Check Single Level Result
         run: |
@@ -167,14 +177,23 @@ jobs:
             -S -s -nographic                                                                                    \
             &
 
-          gdb-multiarch --batch                                                                                 \
+          timeout 5s gdb-multiarch --batch                                                                       \
             -ex "set output-radix 16"                                                                           \
             -ex "target remote :1234"                                                                           \
-            -ex "watch global"                                                                                  \
             -ex "continue"                                                                                      \
             -ex "monitor quit"                                                                                  \
             ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/multiple_inheritance.elf            \
-            > gdb.log
+            > gdb.log || {
+              # Make timeouts more explicit  
+              code=$?
+              if [ "$code" -eq 124 ]; then
+                echo "❌ GDB timeout after 5 seconds" >&2
+              else
+                echo "❌ GDB failed with code $code" >&2
+              fi
+              exit $code
+            }
+          
 
       - name: Check Multiple Inheritance Result
         run: |
