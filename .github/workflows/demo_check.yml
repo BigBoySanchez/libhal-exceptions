@@ -131,7 +131,6 @@ jobs:
             -ex "target remote :1234"                                                                         \
             -ex "watch global"                                                                                \
             -ex "continue"                                                                                    \
-            -ex "monitor quit"                                                                                \
             ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/single_level.elf                  \
             > gdb.log
 
