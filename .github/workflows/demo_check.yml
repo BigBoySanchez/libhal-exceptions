@@ -177,9 +177,10 @@ jobs:
             -S -s -nographic                                                                                    \
             &
 
-          timeout 5s gdb-multiarch --batch                                                                       \
+          timeout 5s gdb-multiarch --batch                                                                      \
             -ex "set output-radix 16"                                                                           \
             -ex "target remote :1234"                                                                           \
+            -ex "watch global"                                                                                  \
             -ex "continue"                                                                                      \
             -ex "monitor quit"                                                                                  \
             ${{ github.workspace }}/${{ steps.trim.outputs.trimmed }}/Debug/multiple_inheritance.elf            \
@@ -193,7 +194,6 @@ jobs:
               fi
               exit $code
             }
-          
 
       - name: Check Multiple Inheritance Result
         run: |
